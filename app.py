@@ -3,82 +3,86 @@ import yfinance as yf
 import pandas as pd
 
 st.set_page_config(page_title="Candlestick Bible Signals", layout="wide")
-st.title("📖 Candlestick Bible Signal App")
+st.title("🥇 Gold & Forex Signal Scanner")
 
-# 1. Sidebar Setup
-symbol = st.sidebar.text_input("Ticker (e.g., EURUSD=X, BTC-USD, AAPL)", "EURUSD=X")
-timeframe = st.sidebar.selectbox("Timeframe", ("1h", "4h", "1d"), index=2)
+# --- SIDEBAR SETTINGS ---
+st.sidebar.header("Settings")
 
-# 2. Fetch and Clean Data
-@st.cache_data(ttl=300)
+# Set GC=F (Gold) as the default text input
+symbol = st.sidebar.text_input("Ticker Symbol", value="GC=F")
+
+# Set 1h as the default index for the select box
+# index=0 corresponds to the first item in the list ["1h", "4h", "1d"]
+timeframe = st.sidebar.selectbox("Timeframe", ("1h", "4h", "1d"), index=0)
+
+st.sidebar.info("As per the book: Focus on 1H, 4H, and Daily for reliable T.L.S. signals.")
+
+# --- DATA FETCHING ---
+@st.cache_data(ttl=300) # Caches data for 5 minutes to keep the app fast
 def load_data(ticker, tf):
-    df = yf.download(ticker, period="60d", interval=tf)
-    # Fix for Multi-Index Columns
-    if isinstance(df.columns, pd.MultiIndex):
-        df.columns = df.columns.get_level_values(0)
-    return df
+    return yf.download(ticker, period="60d", interval=tf)
 
 data = load_data(symbol, timeframe)
 
 if not data.empty:
-    # Calculate 21 SMA (The Trend filter from the book)
+    # 1. THE TREND (21 SMA)
+    # The book uses the 21-period SMA to determine the dominant market direction
     data['SMA21'] = data['Close'].rolling(window=21).mean()
     
-    # Get the two most recent complete candles
     current = data.iloc[-1]
     prev = data.iloc[-2]
     
-    # 3. Pattern Detection (The Signal)
+    # 2. THE SIGNAL LOGIC (Pin Bar & Engulfing)
     def detect_signals(curr, p):
-        signals = []
-        
-        # Anatomy of the candle
-        range_tot = curr['High'] - curr['Low']
-        body = abs(curr['Open'] - curr['Close'])
+        total_range = curr['High'] - curr['Low']
+        body_size = abs(curr['Open'] - curr['Close'])
         lower_shadow = min(curr['Open'], curr['Close']) - curr['Low']
         upper_shadow = curr['High'] - max(curr['Open'], curr['Close'])
         
-        # PIN BAR (Rejection of price)
-        if lower_shadow > (range_tot * 0.66):
-            signals.append("Bullish Pin Bar")
-        elif upper_shadow > (range_tot * 0.66):
-            signals.append("Bearish Pin Bar")
-            
-        # ENGULFING BAR
-        if curr['Close'] > curr['Open'] and p['Close'] < p['Open']:
-            if curr['Close'] > p['Open'] and curr['Open'] < p['Close']:
-                signals.append("Bullish Engulfing")
-        elif curr['Close'] < curr['Open'] and p['Close'] > p['Open']:
-            if curr['Close'] < p['Open'] and curr['Open'] > p['Close']:
-                signals.append("Bearish Engulfing")
-                
-        return signals
+        # Pin Bar: Shadow is at least 2/3 (66%) of the candle
+        is_bull_pin = lower_shadow > (total_range * 0.66)
+        is_bear_pin = upper_shadow > (total_range * 0.66)
+        
+        # Engulfing: Current body consumes previous body
+        is_bull_engulf = (curr['Close'] > curr['Open']) and (p['Close'] < p['Open']) and (curr['Close'] >= p['Open']) and (curr['Open'] <= p['Close'])
+        is_bear_engulf = (curr['Close'] < curr['Open']) and (p['Close'] > p['Open']) and (curr['Close'] <= p['Open']) and (curr['Open'] >= p['Close'])
+        
+        if is_bull_pin: return "Bullish Pin Bar"
+        if is_bear_pin: return "Bearish Pin Bar"
+        if is_bull_engulf: return "Bullish Engulfing"
+        if is_bear_engulf: return "Bearish Engulfing"
+        return None
 
-    found_signals = detect_signals(current, prev)
+    signal = detect_signals(current, prev)
     
-    # 4. Trend Determination (The Trend)
-    trend = "UPTREND" if current['Close'] > current['SMA21'] else "DOWNTREND"
+    # 3. THE TREND CHECK (T.L.S. Rule)
+    # Is the price above or below the 21 SMA?
+    is_uptrend = current['Close'] > current['SMA21']
+    trend_text = "UPTREND" if is_uptrend else "DOWNTREND"
     
-    # 5. Display Interface
+    # --- DASHBOARD DISPLAY ---
     col1, col2 = st.columns(2)
+    
     with col1:
-        st.metric("Current Price", f"{current['Close']:.4f}")
-        st.write(f"**Market Structure:** {trend} (Price vs 21 SMA)")
+        st.metric(label=f"Current {symbol} Price", value=f"{current['Close']:.2f}")
+        st.write(f"**Market Trend:** {trend_text}")
 
     with col2:
-        if found_signals:
-            for s in found_signals:
-                st.success(f"🎯 SIGNAL: {s}")
-                # TLS Check: Trend - Level - Signal
-                if ("Bullish" in s and trend == "UPTREND") or ("Bearish" in s and trend == "DOWNTREND"):
-                    st.info("✅ **T.L.S. Confluence:** This signal aligns with the trend.")
-                else:
-                    st.warning("⚠️ **Counter-Trend:** Trade with caution.")
+        if signal:
+            st.header(f"Signal: {signal}")
+            # Logic for Confluence (Signal + Trend)
+            if (is_uptrend and "Bullish" in signal) or (not is_uptrend and "Bearish" in signal):
+                st.success("✅ **HIGH PROBABILITY SETUP**")
+                st.write("The Signal matches the Trend (T.L.S. Confirmed). Look for Support/Resistance levels to enter.")
+            else:
+                st.warning("⚠️ **COUNTER-TREND SIGNAL**")
+                st.write("The book advises caution. This signal is against the dominant trend.")
         else:
-            st.info("No clear candlestick signals detected. Wait for a setup at a Key Level.")
+            st.info("No primary candlestick patterns detected on the current candle.")
 
-    # Show raw data for transparency
-    with st.expander("View Recent Price Action"):
-        st.dataframe(data.tail(5))
+    # Show the chart data for reference
+    with st.expander("View Raw Data"):
+        st.dataframe(data.tail(10))
+
 else:
-    st.error("Could not fetch data. Please check the ticker symbol.")
+    st.error("No data found. Please check the Ticker Symbol (e.g., GC=F for Gold).")
