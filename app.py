@@ -4,19 +4,24 @@ import pandas as pd
 from datetime import datetime
 import pytz
 
-# --- 1. HARDCORE CSS RESET ---
+# --- 1. PRO UI RESET (FIXED SIDE-BY-SIDE) ---
 st.set_page_config(page_title="Gold Master", layout="wide", initial_sidebar_state="collapsed")
 
 st.markdown("""
     <style>
-    /* 1. Kill all outer margins and the header/footer */
     .block-container { padding: 0.5rem !important; background-color: #0a0b10; }
     header, footer { display: none !important; }
     
-    /* 2. Force the inputs to be tiny and horizontal */
-    [data-testid="stHorizontalBlock"] { gap: 0rem !important; }
+    /* Force SYMBOL and TF to stay on ONE LINE */
+    .control-row {
+        display: flex;
+        gap: 10px;
+        align-items: flex-end;
+        margin-bottom: 15px;
+    }
+    .control-item { flex: 1; }
     
-    /* 3. Modern Glass Card */
+    /* Glass Card Style */
     .trade-card {
         background: rgba(255, 255, 255, 0.03);
         border: 1px solid rgba(255, 255, 255, 0.1);
@@ -25,27 +30,28 @@ st.markdown("""
         margin-top: 10px;
         text-align: center;
     }
-    
     .price-display { font-size: 2.8rem; font-weight: 800; color: #ffffff; margin: 0; line-height: 1.1; }
-    .label-small { color: #808495; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1px; }
-    
-    /* 4. Ticket Rows */
+    .label-small { color: #808495; font-size: 0.65rem; text-transform: uppercase; font-weight: bold; }
     .ticket-line { display: flex; justify-content: space-between; margin: 6px 0; font-size: 1rem; border-bottom: 1px solid rgba(255, 255, 255, 0.03); padding-bottom: 2px; }
     
-    /* 5. Force specific input width to prevent stacking */
-    div[data-testid="column"] { min-width: 45% !important; flex: 1 !important; }
+    /* Custom Refresh Button Style */
+    .stButton>button { width: 100%; border-radius: 10px; background: #1e1e2e; color: white; border: 1px solid #333; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. THE CONTROL ROW (STAYS HORIZONTAL) ---
-# We use a compact column layout with specific widths
-c1, c2 = st.columns([1, 1])
+# --- 2. CONTROL CENTER ---
+c1, c2, c3 = st.columns([2, 2, 1])
 with c1:
-    asset = st.text_input("SYMBOL", value="GC=F", label_visibility="visible").upper()
+    asset = st.text_input("SYMBOL", value="GC=F").upper()
 with c2:
-    tf = st.selectbox("TF", ["1h", "4h", "1d"], index=1, label_visibility="visible")
+    tf = st.selectbox("TF", ["1h", "4h", "1d"], index=1)
+with c3:
+    st.write("") # Spacer
+    if st.button("🔄"):
+        st.cache_data.clear()
+        st.rerun()
 
-# --- 3. DATA ENGINE ---
+# --- 3. DATA & NEWS ENGINE ---
 @st.cache_data(ttl=60)
 def fetch_data(ticker, interval):
     try:
@@ -63,18 +69,17 @@ if not data.empty:
     curr, prev = data.iloc[-1], data.iloc[-2]
     cl, o, h, l = float(curr['Close']), float(curr['Open']), float(curr['High']), float(curr['Low'])
     
-    # Trend & Signal
     is_up = cl > curr['SMA21']
     body, l_s, u_s = abs(o - cl), (min(o, cl) - l), (h - max(o, cl))
     
     sig = None
-    if l_s > (body * 2): sig = "PIN BAR (BULL)"
-    elif u_s > (body * 2): sig = "PIN BAR (BEAR)"
-    elif (cl > o) and (float(prev['Close']) < float(prev['Open'])) and (cl >= float(prev['Open'])): sig = "ENGULFING (BULL)"
-    elif (cl < o) and (float(prev['Close']) > float(prev['Open'])) and (cl <= float(prev['Open'])): sig = "ENGULFING (BEAR)"
+    if l_s > (body * 2): sig = "BULLISH PIN BAR"
+    elif u_s > (body * 2): sig = "BEARISH PIN BAR"
+    elif (cl > o) and (float(prev['Close']) < float(prev['Open'])) and (cl >= float(prev['Open'])): sig = "BULLISH ENGULFING"
+    elif (cl < o) and (float(prev['Close']) > float(prev['Open'])) and (cl <= float(prev['Open'])): sig = "BEARISH ENGULFING"
 
     # --- 4. THE UI ---
-    st.markdown(f"<div style='text-align: center; margin-top: 10px;'><span class='label-small'>{asset} LIVE • {time_now}</span></div>", unsafe_allow_html=True)
+    st.markdown(f"<div style='text-align: center;'><span class='label-small'>{asset} • {time_now} JHB</span></div>", unsafe_allow_html=True)
 
     # Price Card
     trend_color = "#00ffa3" if is_up else "#ff3366"
@@ -82,26 +87,32 @@ if not data.empty:
         <div class="trade-card">
             <div class="label-small">Spot Price</div>
             <div class="price-display">${cl:,.2f}</div>
-            <div style="color: {trend_color}; font-size: 0.8rem; font-weight: bold; margin-top:5px;">TREND: {'UP' if is_up else 'DOWN'}</div>
+            <div style="color: {trend_color}; font-size: 0.8rem; font-weight: bold;">TREND: {'UP' if is_up else 'DOWN'}</div>
         </div>
     """, unsafe_allow_html=True)
 
-    # Signal Card
+    # Signal & Strategy
     if sig:
-        is_bull = "BULL" in sig
-        ent = h + 0.2 if is_bull else l - 0.2
-        sl = l - 0.2 if is_bull else h + 0.2
+        is_bull = "BULLISH" in sig
+        ent = h + 0.3 if is_bull else l - 0.3
+        sl = l - 0.3 if is_bull else h + 0.3
         tp = ent + (abs(ent-sl)*2) if is_bull else ent - (abs(ent-sl)*2)
         accent = "#00ffa3" if is_bull else "#ff3366"
         st.markdown(f"""
             <div class="trade-card" style="border-top: 3px solid {accent}">
-                <div style="color: {accent}; font-weight: bold; font-size: 1.1rem; margin-bottom: 10px;">{sig}</div>
+                <div style="color: {accent}; font-weight: bold; font-size: 1.1rem; margin-bottom: 5px;">{sig}</div>
                 <div class="ticket-line"><span>ENTRY</span><b>{ent:.2f}</b></div>
                 <div class="ticket-line"><span>STOP LOSS</span><b>{sl:.2f}</b></div>
                 <div class="ticket-line" style="color: #00ffa3;"><span>TARGET (1:2)</span><b>{tp:.2f}</b></div>
             </div>
         """, unsafe_allow_html=True)
-    else:
-        st.info("🔎 Monitoring Market...")
+    
+    # Fundamental Alert
+    st.markdown("""
+        <div style="background: rgba(255,165,0,0.1); border: 1px solid orange; padding: 10px; border-radius: 8px; margin-top: 10px; font-size: 0.8rem;">
+            ⚠️ <b>NEWS:</b> Gold rebounding on Iran peace talks progress. Focus on Friday's US Jobs Report.
+        </div>
+    """, unsafe_allow_html=True)
+
 else:
-    st.error("Check Symbol")
+    st.error("Check Connection")
