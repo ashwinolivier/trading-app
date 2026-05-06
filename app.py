@@ -2,51 +2,83 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 
-st.title("Candlestick Bible Signals")
+st.set_page_config(page_title="Candlestick Bible Signals", layout="wide")
+st.title("📖 Candlestick Bible Signal App")
 
-# 1. Inputs
-symbol = st.sidebar.text_input("Ticker (e.g., EURUSD=X, AAPL)", "EURUSD=X")
-timeframe = st.sidebar.selectbox("Timeframe", ("1h", "4h", "1d"))
+# 1. Sidebar Setup
+symbol = st.sidebar.text_input("Ticker (e.g., EURUSD=X, BTC-USD, AAPL)", "EURUSD=X")
+timeframe = st.sidebar.selectbox("Timeframe", ("1h", "4h", "1d"), index=2)
 
-# 2. Fetch Data
-data = yf.download(symbol, period="60d", interval=timeframe)
+# 2. Fetch and Clean Data
+@st.cache_data(ttl=300)
+def load_data(ticker, tf):
+    df = yf.download(ticker, period="60d", interval=tf)
+    # Fix for Multi-Index Columns
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = df.columns.get_level_values(0)
+    return df
+
+data = load_data(symbol, timeframe)
 
 if not data.empty:
-    # Calculate 21 SMA (The Trend - as per the book)
+    # Calculate 21 SMA (The Trend filter from the book)
     data['SMA21'] = data['Close'].rolling(window=21).mean()
     
+    # Get the two most recent complete candles
     current = data.iloc[-1]
     prev = data.iloc[-2]
     
-    # 3. The Signal Logic (Pin Bar & Engulfing)
-    def get_signal(curr, p):
-        # Pin Bar logic
-        total_range = curr['High'] - curr['Low']
+    # 3. Pattern Detection (The Signal)
+    def detect_signals(curr, p):
+        signals = []
+        
+        # Anatomy of the candle
+        range_tot = curr['High'] - curr['Low']
+        body = abs(curr['Open'] - curr['Close'])
         lower_shadow = min(curr['Open'], curr['Close']) - curr['Low']
         upper_shadow = curr['High'] - max(curr['Open'], curr['Close'])
         
-        # Engulfing logic
-        is_bullish_engulfing = (curr['Close'] > curr['Open']) and (p['Close'] < p['Open']) and (curr['Close'] > p['Open']) and (curr['Open'] < p['Close'])
-        
-        if lower_shadow > (total_range * 0.66): return "Bullish Pin Bar"
-        if upper_shadow > (total_range * 0.66): return "Bearish Pin Bar"
-        if is_bullish_engulfing: return "Bullish Engulfing"
-        return None
+        # PIN BAR (Rejection of price)
+        if lower_shadow > (range_tot * 0.66):
+            signals.append("Bullish Pin Bar")
+        elif upper_shadow > (range_tot * 0.66):
+            signals.append("Bearish Pin Bar")
+            
+        # ENGULFING BAR
+        if curr['Close'] > curr['Open'] and p['Close'] < p['Open']:
+            if curr['Close'] > p['Open'] and curr['Open'] < p['Close']:
+                signals.append("Bullish Engulfing")
+        elif curr['Close'] < curr['Open'] and p['Close'] > p['Open']:
+            if curr['Close'] < p['Open'] and curr['Open'] > p['Close']:
+                signals.append("Bearish Engulfing")
+                
+        return signals
 
-    signal = get_signal(current, prev)
+    found_signals = detect_signals(current, prev)
     
-    # 4. The Trend Check (T.L.S. Rule)
-    trend = "UP" if current['Close'] > current['SMA21'] else "DOWN"
+    # 4. Trend Determination (The Trend)
+    trend = "UPTREND" if current['Close'] > current['SMA21'] else "DOWNTREND"
     
-    # 5. Output
-    st.metric("Price", f"{current['Close']:.4f}")
-    st.write(f"**Current Trend:** {trend}")
-    
-    if signal:
-        st.success(f"**SIGNAL DETECTED:** {signal}")
-        if (trend == "UP" and "Bullish" in signal) or (trend == "DOWN" and "Bearish" in signal):
-            st.write("✅ **T.L.S. Confirmed:** Signal aligns with Trend.")
+    # 5. Display Interface
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("Current Price", f"{current['Close']:.4f}")
+        st.write(f"**Market Structure:** {trend} (Price vs 21 SMA)")
+
+    with col2:
+        if found_signals:
+            for s in found_signals:
+                st.success(f"🎯 SIGNAL: {s}")
+                # TLS Check: Trend - Level - Signal
+                if ("Bullish" in s and trend == "UPTREND") or ("Bearish" in s and trend == "DOWNTREND"):
+                    st.info("✅ **T.L.S. Confluence:** This signal aligns with the trend.")
+                else:
+                    st.warning("⚠️ **Counter-Trend:** Trade with caution.")
         else:
-            st.warning("⚠️ **Caution:** Signal against Trend.")
-    else:
-        st.info("Searching for patterns at key levels...")
+            st.info("No clear candlestick signals detected. Wait for a setup at a Key Level.")
+
+    # Show raw data for transparency
+    with st.expander("View Recent Price Action"):
+        st.dataframe(data.tail(5))
+else:
+    st.error("Could not fetch data. Please check the ticker symbol.")
