@@ -79,7 +79,7 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
-API_KEY = st.secrets["AV_API_KEY"]
+API_KEY = "EI56ESE4GLAVFHQY"
 
 c1, c2, c3 = st.columns([2, 2, 1])
 with c1:
