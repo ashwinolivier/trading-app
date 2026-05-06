@@ -79,11 +79,7 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
-# --- API KEY INPUT ---
-with st.sidebar:
-    st.markdown("### CONFIG")
-    api_key = st.text_input("Alpha Vantage API Key", type="password", placeholder="Enter your key...")
-    st.caption("Get a free key at alphavantage.co")
+API_KEY = st.secrets["AV_API_KEY"]
 
 c1, c2, c3 = st.columns([2, 2, 1])
 with c1:
@@ -98,11 +94,7 @@ with c3:
         st.cache_data.clear()
         st.rerun()
 
-# --- DATA FETCH ---
-# Cache for 15min on intraday, 1hr on daily to protect free tier
-TTL_MAP = {"60min": 900, "daily": 3600}
-
-@st.cache_data(ttl=TTL_MAP.get("60min", 900), show_spinner=False)
+@st.cache_data(ttl=900, show_spinner=False)
 def fetch_intraday(key, interval):
     url = (
         "https://www.alphavantage.co/query"
@@ -114,11 +106,11 @@ def fetch_intraday(key, interval):
         "&apikey=" + key
     )
     r = requests.get(url, timeout=10)
-    data = r.json()
+    d = r.json()
     key_name = "Time Series FX (" + interval + ")"
-    if key_name not in data:
-        return pd.DataFrame(), data.get("Note", data.get("Information", "Unknown error"))
-    ts = data[key_name]
+    if key_name not in d:
+        return pd.DataFrame(), d.get("Note", d.get("Information", "Unknown API error"))
+    ts = d[key_name]
     df = pd.DataFrame(ts).T
     df.index = pd.to_datetime(df.index)
     df = df.sort_index()
@@ -137,10 +129,10 @@ def fetch_daily(key):
         "&apikey=" + key
     )
     r = requests.get(url, timeout=10)
-    data = r.json()
-    if "Time Series FX (Daily)" not in data:
-        return pd.DataFrame(), data.get("Note", data.get("Information", "Unknown error"))
-    ts = data["Time Series FX (Daily)"]
+    d = r.json()
+    if "Time Series FX (Daily)" not in d:
+        return pd.DataFrame(), d.get("Note", d.get("Information", "Unknown API error"))
+    ts = d["Time Series FX (Daily)"]
     df = pd.DataFrame(ts).T
     df.index = pd.to_datetime(df.index)
     df = df.sort_index()
@@ -148,7 +140,6 @@ def fetch_daily(key):
     df = df.astype(float)
     return df, None
 
-# --- LEVELS & TRADE LOGIC ---
 def calc_levels(df, n_candles):
     window = df.iloc[-n_candles:]
     H = float(window["High"].max())
@@ -195,25 +186,15 @@ def get_bias_class(price, pivot, res1, sup1):
     else:
         return "neutral", "NEUTRAL"
 
-# --- MAIN ---
-if not api_key:
-    st.markdown(
-        "<div class='card' style='text-align:center;padding:40px;'>"
-        "<div class='card-label' style='font-size:0.8rem;margin-bottom:12px'>API KEY REQUIRED</div>"
-        "<div style='color:#4a6080;font-size:0.85rem'>Enter your Alpha Vantage API key in the sidebar to begin.</div>"
-        "<div style='margin-top:12px;font-size:0.75rem;color:#3a5070'>Free key at <b style='color:#4a9eff'>alphavantage.co</b></div>"
-        "</div>",
-        unsafe_allow_html=True
-    )
-    st.stop()
-
 with st.spinner("Fetching XAU/USD..."):
     if tf == "daily":
-        data, err = fetch_daily(api_key)
+        data, err = fetch_daily(API_KEY)
         lookback = 60
+        cache_label = "1HR CACHE"
     else:
-        data, err = fetch_intraday(api_key, tf)
+        data, err = fetch_intraday(API_KEY, tf)
         lookback = 48
+        cache_label = "15MIN CACHE"
 
 time_now = datetime.now(pytz.timezone("Africa/Johannesburg")).strftime("%H:%M:%S")
 date_now = datetime.now(pytz.timezone("Africa/Johannesburg")).strftime("%d %b %Y")
@@ -223,14 +204,14 @@ if err:
         "<div class='card' style='border-color:#ff3355'>"
         "<div class='card-label'>API ERROR</div>"
         "<div style='color:#ff3355;font-size:0.85rem'>" + str(err) + "</div>"
-        "<div style='color:#4a6080;font-size:0.75rem;margin-top:8px'>Free tier: 25 requests/day. If you hit the limit, try again tomorrow or upgrade at alphavantage.co</div>"
+        "<div style='color:#4a6080;font-size:0.75rem;margin-top:8px'>Free tier: 25 requests/day. Try again later or upgrade at alphavantage.co</div>"
         "</div>",
         unsafe_allow_html=True
     )
     st.stop()
 
 if data.empty or len(data) < 5:
-    st.error("Not enough data. Try a different timeframe or check your API key.")
+    st.error("Not enough data. Try switching timeframe or check your API key.")
     st.stop()
 
 cl = float(data["Close"].iloc[-1])
@@ -267,7 +248,7 @@ with col_a:
         "<div class='range-labels'><span>S2 " + f"{sup2:,.0f}" + "</span><span>PIVOT " + f"{pivot:,.0f}" + "</span><span>" + f"{res2:,.0f}" + " R2</span></div>"
         "</div>"
         "<div style='text-align:center' class='timestamp'>" + time_now + " JHB | " + str(n_used) + " CANDLES | " + tf.upper() + "</div>"
-        "<div class='req-counter'>FREE TIER: 25 REQ/DAY -- CACHE: " + ("15MIN" if tf != "daily" else "1HR") + "</div>"
+        "<div class='req-counter'>FREE TIER: 25 REQ/DAY | " + cache_label + "</div>"
         "</div>",
         unsafe_allow_html=True
     )
@@ -301,9 +282,9 @@ st.markdown(
 
 if bias_type == "bull":
     if cl > res2:
-        alert_msg = "🚀 <b>BREAKOUT CONFIRMED.</b> XAU/USD trading above R2 at <b>$" + f"{res2:,.2f}" + "</b>. Long bias active. Trail stop above pivot."
+        alert_msg = "🚀 <b>BREAKOUT CONFIRMED.</b> XAU/USD above R2 at <b>$" + f"{res2:,.2f}" + "</b>. Long bias active. Trail stop above pivot."
     elif cl > res1:
-        alert_msg = "📈 <b>APPROACHING R2.</b> Price above R1 -- XAU/USD testing upper structure. Long entry near <b>$" + f"{entry:,.2f}" + "</b>, target R2."
+        alert_msg = "📈 <b>APPROACHING R2.</b> Price above R1 -- testing upper structure. Long entry near <b>$" + f"{entry:,.2f}" + "</b>, target R2."
     else:
         alert_msg = "📊 <b>BULLISH BIAS.</b> XAU/USD holding above pivot <b>$" + f"{pivot:,.2f}" + "</b>. Look for long entries on pullbacks."
 elif bias_type == "bear":
