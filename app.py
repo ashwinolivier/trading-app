@@ -4,49 +4,46 @@ import pandas as pd
 from datetime import datetime
 import pytz
 
-# --- 1. HARD-RESET UI (SQUASH EVERYTHING) ---
+# --- 1. HARDCORE CSS RESET ---
 st.set_page_config(page_title="Gold Master", layout="wide", initial_sidebar_state="collapsed")
 
 st.markdown("""
     <style>
-    /* 1. Remove all possible padding/margins */
+    /* 1. Kill all outer margins and the header/footer */
     .block-container { padding: 0.5rem !important; background-color: #0a0b10; }
-    header, footer { display: none !important; } /* Clean look */
+    header, footer { display: none !important; }
     
-    /* 2. Force Input Columns to stay horizontal on iPhone */
-    [data-testid="column"] { width: 48% !important; flex: 1 1 48% !important; min-width: 48% !important; }
-    div[data-testid="stHorizontalBlock"] { gap: 0.5rem !important; }
+    /* 2. Force the inputs to be tiny and horizontal */
+    [data-testid="stHorizontalBlock"] { gap: 0rem !important; }
     
-    /* 3. Shrink Labels and Inputs */
-    label { font-size: 0.6rem !important; margin-bottom: -15px !important; color: #888 !important; }
-    div[data-baseweb="select"] > div, .stTextInput input { 
-        min-height: 28px !important; height: 28px !important; font-size: 0.8rem !important; padding: 0 5px !important; 
-    }
-
-    /* 4. Glass Card Styling (Tighter) */
+    /* 3. Modern Glass Card */
     .trade-card {
         background: rgba(255, 255, 255, 0.03);
         border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 10px;
-        padding: 10px;
-        margin-top: 5px;
+        border-radius: 12px;
+        padding: 15px;
+        margin-top: 10px;
         text-align: center;
     }
     
-    .price-display { font-size: 2.5rem; font-weight: 800; color: #ffffff; margin: 0; line-height: 1.1; }
-    .label-small { color: #808495; font-size: 0.6rem; text-transform: uppercase; letter-spacing: 1px; }
+    .price-display { font-size: 2.8rem; font-weight: 800; color: #ffffff; margin: 0; line-height: 1.1; }
+    .label-small { color: #808495; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1px; }
     
-    /* 5. Ticket Rows */
-    .ticket-line { display: flex; justify-content: space-between; margin: 4px 0; font-size: 0.9rem; border-bottom: 1px solid rgba(255, 255, 255, 0.03); padding-bottom: 2px; }
+    /* 4. Ticket Rows */
+    .ticket-line { display: flex; justify-content: space-between; margin: 6px 0; font-size: 1rem; border-bottom: 1px solid rgba(255, 255, 255, 0.03); padding-bottom: 2px; }
+    
+    /* 5. Force specific input width to prevent stacking */
+    div[data-testid="column"] { min-width: 45% !important; flex: 1 !important; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. TOP BAR (Symbol & TF Side-by-Side) ---
-c1, c2 = st.columns(2)
+# --- 2. THE CONTROL ROW (STAYS HORIZONTAL) ---
+# We use a compact column layout with specific widths
+c1, c2 = st.columns([1, 1])
 with c1:
-    asset = st.text_input("SYMBOL", value="GC=F").upper()
+    asset = st.text_input("SYMBOL", value="GC=F", label_visibility="visible").upper()
 with c2:
-    tf = st.selectbox("TF", ["1h", "4h", "1d"], index=1)
+    tf = st.selectbox("TF", ["1h", "4h", "1d"], index=1, label_visibility="visible")
 
 # --- 3. DATA ENGINE ---
 @st.cache_data(ttl=60)
@@ -77,7 +74,7 @@ if not data.empty:
     elif (cl < o) and (float(prev['Close']) > float(prev['Open'])) and (cl <= float(prev['Open'])): sig = "ENGULFING (BEAR)"
 
     # --- 4. THE UI ---
-    st.markdown(f"<div style='text-align: center; margin-top: 5px;'><span class='label-small'>{asset} • {time_now}</span></div>", unsafe_allow_html=True)
+    st.markdown(f"<div style='text-align: center; margin-top: 10px;'><span class='label-small'>{asset} LIVE • {time_now}</span></div>", unsafe_allow_html=True)
 
     # Price Card
     trend_color = "#00ffa3" if is_up else "#ff3366"
@@ -85,7 +82,7 @@ if not data.empty:
         <div class="trade-card">
             <div class="label-small">Spot Price</div>
             <div class="price-display">${cl:,.2f}</div>
-            <div style="color: {trend_color}; font-size: 0.7rem; font-weight: bold;">TREND: {'UP' if is_up else 'DOWN'}</div>
+            <div style="color: {trend_color}; font-size: 0.8rem; font-weight: bold; margin-top:5px;">TREND: {'UP' if is_up else 'DOWN'}</div>
         </div>
     """, unsafe_allow_html=True)
 
@@ -97,14 +94,14 @@ if not data.empty:
         tp = ent + (abs(ent-sl)*2) if is_bull else ent - (abs(ent-sl)*2)
         accent = "#00ffa3" if is_bull else "#ff3366"
         st.markdown(f"""
-            <div class="trade-card" style="border-top: 2px solid {accent}">
-                <div style="color: {accent}; font-weight: bold; font-size: 0.9rem; margin-bottom: 5px;">{sig}</div>
+            <div class="trade-card" style="border-top: 3px solid {accent}">
+                <div style="color: {accent}; font-weight: bold; font-size: 1.1rem; margin-bottom: 10px;">{sig}</div>
                 <div class="ticket-line"><span>ENTRY</span><b>{ent:.2f}</b></div>
                 <div class="ticket-line"><span>STOP LOSS</span><b>{sl:.2f}</b></div>
                 <div class="ticket-line" style="color: #00ffa3;"><span>TARGET (1:2)</span><b>{tp:.2f}</b></div>
             </div>
         """, unsafe_allow_html=True)
     else:
-        st.info("Scanning...")
+        st.info("🔎 Monitoring Market...")
 else:
-    st.error("Invalid Ticker")
+    st.error("Check Symbol")
