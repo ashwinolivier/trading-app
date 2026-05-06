@@ -41,14 +41,14 @@ with c2:
 tf = st.selectbox(“TF”, [“1h”, “4h”, “1d”], index=1)
 with c3:
 st.write(””)
-if st.button(“🔄”):
+if st.button(“Refresh”):
 st.cache_data.clear()
 st.rerun()
 
 # — 3. PERIOD SCALING —
 
 PERIOD_MAP = {“1h”: “10d”, “4h”: “30d”, “1d”: “180d”}
-LOOKBACK_MAP = {“1h”: 48, “4h”: 30, “1d”: 60}  # candles to use for level calc
+LOOKBACK_MAP = {“1h”: 48, “4h”: 30, “1d”: 60}
 
 # — 4. DATA FETCH —
 
@@ -65,7 +65,7 @@ return pd.DataFrame()
 period = PERIOD_MAP[tf]
 lookback = LOOKBACK_MAP[tf]
 data = fetch_data(asset, tf, period)
-time_now = datetime.now(pytz.timezone(‘Africa/Johannesburg’)).strftime(’%H:%M’)
+time_now = datetime.now(pytz.timezone(“Africa/Johannesburg”)).strftime(”%H:%M”)
 
 # — 5. DYNAMIC LEVELS —
 
@@ -75,9 +75,9 @@ Classic floor trader pivot points from the last N candles.
 Returns (pivot, res1, res2, sup1, sup2).
 “””
 window = df.iloc[-n_candles:]
-H = float(window[‘High’].max())
-L = float(window[‘Low’].min())
-C = float(df[‘Close’].iloc[-1])
+H = float(window[“High”].max())
+L = float(window[“Low”].min())
+C = float(df[“Close”].iloc[-1])
 P = (H + L + C) / 3
 R1 = 2 * P - L
 R2 = P + (H - L)
@@ -87,24 +87,46 @@ return P, R1, R2, S1, S2
 
 # — 6. DYNAMIC ALERT —
 
-def build_alert(price, pivot, res1, res2, sup1, sup2):
+def build_alert(price, pivot, res1, res2, sup1, sup2, symbol):
 if price > res2:
-return f”🚀 <b>BREAKOUT:</b> {asset} is trading above major resistance <b>${res2:,.0f}</b>. Momentum is bullish — watch for continuation or reversal at extended levels.”
+return (
+“🚀 <b>BREAKOUT:</b> “ + symbol + “ is trading above major resistance”
+“ <b>$” + f”{res2:,.0f}” + “</b>. Momentum is bullish.”
+“ Watch for continuation or reversal at extended levels.”
+)
 elif price > res1:
-return f”⚠️ <b>RESISTANCE TEST:</b> {asset} is above the pivot and approaching major resistance at <b>${res2:,.0f}</b>. A clean break targets higher highs.”
+return (
+“⚠️ <b>RESISTANCE TEST:</b> “ + symbol + “ is above the pivot and”
+“ approaching major resistance at <b>$” + f”{res2:,.0f}” + “</b>.”
+“ A clean break targets higher highs.”
+)
 elif price > pivot:
-return f”📈 <b>BULLISH BIAS:</b> {asset} is holding above the pivot at <b>${pivot:,.0f}</b>. Bulls are in control while price stays above this level.”
+return (
+“📈 <b>BULLISH BIAS:</b> “ + symbol + “ is holding above the pivot at”
+“ <b>$” + f”{pivot:,.0f}” + “</b>. Bulls are in control while price”
+“ stays above this level.”
+)
 elif price > sup1:
-return f”⚠️ <b>PIVOT LOST:</b> {asset} has slipped below the pivot <b>${pivot:,.0f}</b>. Bears testing Support 1 at <b>${sup1:,.0f}</b> — a hold here is key.”
+return (
+“⚠️ <b>PIVOT LOST:</b> “ + symbol + “ has slipped below the pivot”
+“ <b>$” + f”{pivot:,.0f}” + “</b>. Bears testing Support 1 at”
+“ <b>$” + f”{sup1:,.0f}” + “</b> — a hold here is key.”
+)
 elif price > sup2:
-return f”🔴 <b>SUPPORT TEST:</b> {asset} is between Support 1 and Major Support. A break of <b>${sup2:,.0f}</b> would be structurally bearish.”
+return (
+“🔴 <b>SUPPORT TEST:</b> “ + symbol + “ is between Support 1 and”
+“ Major Support. A break of <b>$” + f”{sup2:,.0f}” + “</b>”
+“ would be structurally bearish.”
+)
 else:
-return f”🚨 <b>MAJOR SUPPORT BROKEN:</b> {asset} is trading below <b>${sup2:,.0f}</b>. Significant downside risk — reassess bias.”
+return (
+“🚨 <b>MAJOR SUPPORT BROKEN:</b> “ + symbol + “ is trading below”
+“ <b>$” + f”{sup2:,.0f}” + “</b>. Significant downside risk — reassess bias.”
+)
 
 # — 7. PRICE ZONE INDICATOR —
 
 def price_position_pct(price, s2, r2):
-“”“Where does price sit in the full S2→R2 range? Returns 0–100.”””
 rng = r2 - s2
 if rng == 0:
 return 50
@@ -113,56 +135,71 @@ return max(0, min(100, (price - s2) / rng * 100))
 # — 8. RENDER —
 
 if not data.empty and len(data) >= 5:
-cl = float(data[‘Close’].iloc[-1])
+cl = float(data[“Close”].iloc[-1])
 pivot, res1, res2, sup1, sup2 = calc_levels(data, min(lookback, len(data)))
-alert_html = build_alert(cl, pivot, res1, res2, sup1, sup2)
+alert_html = build_alert(cl, pivot, res1, res2, sup1, sup2, asset)
 pos_pct = price_position_pct(cl, sup2, res2)
+bar_color = “#ff3366” if pos_pct > 66 else “#ffcc00” if pos_pct > 33 else “#00ffa3”
+n_used = min(lookback, len(data))
 
 ```
 st.markdown(
-    f"<div style='text-align: center;'><span class='label-small'>{asset} • {tf} • {time_now} JHB</span></div>",
-    unsafe_allow_html=True
+    "<div style='text-align: center;'>"
+    "<span class='label-small'>" + asset + " | " + tf + " | " + time_now + " JHB</span>"
+    "</div>",
+    unsafe_allow_html=True,
 )
 
 # Price Card
-st.markdown(f"""
-    <div class="trade-card">
-        <div style="text-align:center" class="label-small">Spot Price</div>
-        <div class="price-display">${cl:,.2f}</div>
-    </div>
-""", unsafe_allow_html=True)
+st.markdown(
+    "<div class='trade-card'>"
+    "<div style='text-align:center' class='label-small'>Spot Price</div>"
+    "<div class='price-display'>$" + f"{cl:,.2f}" + "</div>"
+    "</div>",
+    unsafe_allow_html=True,
+)
 
-# Levels Card with zone bar
-st.markdown(f"""
-    <div class="trade-card">
-        <div class="label-small" style="margin-bottom:8px">Dynamic Levels (last {min(lookback, len(data))} candles)</div>
-        <div class="level-row" style="color: #ff3366;"><span>MAJOR RESISTANCE (R2)</span><b>{res2:,.0f}</b></div>
-        <div class="level-row" style="color: #ff3366; opacity: 0.7;"><span>RESISTANCE 1 (R1)</span><b>{res1:,.0f}</b></div>
-        <div class="level-row" style="color: #aaa; font-size:0.8rem;"><span>PIVOT</span><b>{pivot:,.0f}</b></div>
-        <hr style="margin: 8px 0; border: 0.5px solid #333;">
-        <div class="level-row" style="color: #00ffa3; opacity: 0.7;"><span>SUPPORT 1 (S1)</span><b>{sup1:,.0f}</b></div>
-        <div class="level-row" style="color: #00ffa3;"><span>MAJOR SUPPORT (S2)</span><b>{sup2:,.0f}</b></div>
-        <div style="margin-top: 12px;">
-            <div class="label-small" style="margin-bottom: 4px;">Price Position in Range</div>
-            <div style="background: #1a1b22; border-radius: 4px; height: 8px; overflow: hidden;">
-                <div style="width: {pos_pct:.1f}%; height: 100%; background: {'#ff3366' if pos_pct > 66 else '#ffcc00' if pos_pct > 33 else '#00ffa3'}; border-radius: 4px; transition: width 0.3s;"></div>
-            </div>
-            <div style="display:flex; justify-content:space-between; font-size:0.6rem; color:#555; margin-top:2px;">
-                <span>S2</span><span>PIVOT</span><span>R2</span>
-            </div>
-        </div>
-    </div>
-""", unsafe_allow_html=True)
+# Levels Card
+st.markdown(
+    "<div class='trade-card'>"
+    "<div class='label-small' style='margin-bottom:8px'>Dynamic Levels (last "
+    + str(n_used) + " candles)</div>"
+    "<div class='level-row' style='color:#ff3366;'>"
+    "<span>MAJOR RESISTANCE (R2)</span><b>" + f"{res2:,.0f}" + "</b></div>"
+    "<div class='level-row' style='color:#ff3366;opacity:0.7;'>"
+    "<span>RESISTANCE 1 (R1)</span><b>" + f"{res1:,.0f}" + "</b></div>"
+    "<div class='level-row' style='color:#aaa;font-size:0.8rem;'>"
+    "<span>PIVOT</span><b>" + f"{pivot:,.0f}" + "</b></div>"
+    "<hr style='margin:8px 0;border:0.5px solid #333;'>"
+    "<div class='level-row' style='color:#00ffa3;opacity:0.7;'>"
+    "<span>SUPPORT 1 (S1)</span><b>" + f"{sup1:,.0f}" + "</b></div>"
+    "<div class='level-row' style='color:#00ffa3;'>"
+    "<span>MAJOR SUPPORT (S2)</span><b>" + f"{sup2:,.0f}" + "</b></div>"
+    "<div style='margin-top:12px;'>"
+    "<div class='label-small' style='margin-bottom:4px;'>Price Position in Range</div>"
+    "<div style='background:#1a1b22;border-radius:4px;height:8px;overflow:hidden;'>"
+    "<div style='width:" + f"{pos_pct:.1f}" + "%;height:100%;background:"
+    + bar_color + ";border-radius:4px;'></div>"
+    "</div>"
+    "<div style='display:flex;justify-content:space-between;font-size:0.6rem;color:#555;margin-top:2px;'>"
+    "<span>S2</span><span>PIVOT</span><span>R2</span>"
+    "</div></div></div>",
+    unsafe_allow_html=True,
+)
 
-# Dynamic alert
-st.markdown(f"""
-    <div style="background: rgba(255,165,0,0.1); border: 1px solid orange; padding: 10px; border-radius: 8px; margin-top: 10px; font-size: 0.8rem;">
-        {alert_html}
-    </div>
-""", unsafe_allow_html=True)
+# Dynamic Alert
+st.markdown(
+    "<div style='background:rgba(255,165,0,0.1);border:1px solid orange;"
+    "padding:10px;border-radius:8px;margin-top:10px;font-size:0.8rem;'>"
+    + alert_html + "</div>",
+    unsafe_allow_html=True,
+)
 ```
 
 else:
-reason = “No data returned — check the symbol or your connection.” if data.empty else f”Only {len(data)} candles available; need at least 5.”
-st.error(f”⚠️ {reason}”)
-st.info(“Try refreshing 🔄 or changing the symbol/timeframe.”)
+if data.empty:
+reason = “No data returned. Check the symbol or your connection.”
+else:
+reason = “Only “ + str(len(data)) + “ candles available; need at least 5.”
+st.error(“⚠️ “ + reason)
+st.info(“Try refreshing or changing the symbol/timeframe.”)
