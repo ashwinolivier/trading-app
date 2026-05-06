@@ -122,4 +122,3 @@ else:
     reason = "No data returned. Check the symbol or your connection." if data.empty else "Only " + str(len(data)) + " candles available; need at least 5."
     st.error("⚠️ " + reason)
     st.info("Try refreshing or changing the symbol/timeframe.")
-ENDOFFILE
