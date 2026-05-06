@@ -6,14 +6,14 @@ from datetime import datetime
 import pytz
 
 # --- 1. SET COMPACT LAYOUT ---
-st.set_page_config(page_title="Gold Master", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="Gold T.L.S.", layout="wide", initial_sidebar_state="collapsed")
 
-# Inject CSS to remove extra padding and make it fit mobile screens better
+# Custom CSS to force everything to fit one screen
 st.markdown("""
     <style>
-    .block-container { padding-top: 1rem; padding-bottom: 0rem; }
-    .stMetric { background-color: #1e2130; padding: 10px; border-radius: 8px; }
-    div[data-testid="stExpander"] { border: none; }
+    .block-container { padding-top: 0.5rem; padding-bottom: 0rem; }
+    .stMetric { background-color: #1e2130; padding: 5px; border-radius: 5px; }
+    h1 { font-size: 1.5rem !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -23,40 +23,36 @@ ny_tz = pytz.timezone('America/New_York')
 now_jhb = datetime.now(jhb_tz)
 now_ny = datetime.now(ny_tz)
 
-def get_status():
-    d, h = now_ny.weekday(), now_ny.hour
-    if d == 5 or (d == 4 and h >= 17) or (d == 6 and h < 18): return "CLOSED", "red"
-    if h == 17: return "BREAK", "orange"
-    return "OPEN", "green"
-
-m_status, m_color = get_status()
-
 # --- 3. DATA FETCHING ---
 @st.cache_data(ttl=300)
 def load_gold(tf):
-    df = yf.download("GC=F", period="5d", interval=tf, auto_adjust=True)
-    if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0)
-    return df
+    try:
+        df = yf.download("GC=F", period="5d", interval=tf, auto_adjust=True)
+        if isinstance(df.columns, pd.MultiIndex): 
+            df.columns = df.columns.get_level_values(0)
+        return df
+    except: return pd.DataFrame()
 
-# Header Row
-col_a, col_b, col_c = st.columns([2, 1, 1])
-with col_a: st.title("🥇 Gold T.L.S.")
-with col_b: st.write(f"📍 {now_jhb.strftime('%H:%M')}")
-with col_c: 
-    if st.button("🔄"): st.cache_data.clear(); st.rerun()
+# HEADER
+col_head, col_ref = st.columns([4, 1])
+with col_head:
+    st.write(f"🥇 **GOLD T.L.S.** | 📍 {now_jhb.strftime('%H:%M')}")
+with col_ref:
+    if st.button("🔄"): 
+        st.cache_data.clear()
+        st.rerun()
 
-# Settings Row
-tf = st.select_slider("Select Timeframe", options=["1h", "4h", "1d"], value="4h")
+# TIMEFRAME SELECTOR (Compact)
+tf = st.select_slider("TF", options=["1h", "4h", "1d"], value="4h", label_visibility="collapsed")
 data = load_gold(tf)
 
 if not data.empty:
-    # SMA & Calculations
     data['SMA21'] = data['Close'].rolling(window=21).mean()
     c, p = data.iloc[-1], data.iloc[-2]
     cl, o, h, l = float(c['Close']), float(c['Open']), float(c['High']), float(c['Low'])
     po, pc = float(p['Open']), float(p['Close'])
     
-    # Pattern Logic
+    # Pattern Logic (Bible Rules)
     body, l_shad, u_shad = abs(o - cl), (min(o, cl) - l), (h - max(o, cl))
     signal = None
     if l_shad > (body * 2): signal = "Bullish Pin Bar"
@@ -64,18 +60,19 @@ if not data.empty:
     elif (cl > o) and (pc < po) and (cl >= po): signal = "Bullish Engulfing"
     elif (cl < o) and (pc > po) and (cl <= po): signal = "Bearish Engulfing"
 
-    # --- 4. TOP ROW: METRICS & SIGNAL ---
+    # --- 4. TOP METRICS ---
     m1, m2, m3 = st.columns(3)
     m1.metric("Price", f"${cl:.1f}")
     m2.metric("Trend", "UP" if cl > c['SMA21'] else "DOWN")
     
-    with m3:
-        if signal: st.success(f"**{signal}**")
-        else: st.info("Scanning...")
-
-    # --- 5. MIDDLE ROW: TRADE PLAN (Only shows if signal exists) ---
     if signal:
-        st.write("---")
+        confluence = (cl > c['SMA21'] and "Bullish" in signal) or (cl < c['SMA21'] and "Bearish" in signal)
+        m3.success(f"**{signal}**" if confluence else f"**{signal}** (Counter)")
+    else:
+        m3.info("No Signal")
+
+    # --- 5. TRADE PLAN (Appears only on Signal) ---
+    if signal:
         if "Bullish" in signal:
             ent, sl = h + 0.3, l - 0.3
             tp = ent + ((ent - sl) * 2)
@@ -88,20 +85,18 @@ if not data.empty:
         t2.metric("SL", f"{sl:.1f}")
         t3.metric("TP", f"{tp:.1f}")
 
-    # --- 6. BOTTOM ROW: THE GRAPH ---
-    # We keep the height short (300px) to fit on one screen
+    # --- 6. CHART (Optimized for Height) ---
     fig = go.Figure(data=[go.Candlestick(
         x=data.index, open=data['Open'], high=data['High'], low=data['Low'], close=data['Close'],
-        increasing_line_color='#00ffcc', decreasing_line_color='#f63366'
+        increasing_line_color='#00ffcc', decreasing_line_color='#f63366', name="Price"
     )])
-    fig.add_trace(go.Scatter(x=data.index, y=data['SMA21'], line=dict(color='yellow', width=1), name='21 SMA'))
+    fig.add_trace(go.Scatter(x=data.index, y=data['SMA21'], line=dict(color='yellow', width=1.5), name='21 SMA'))
     
     fig.update_layout(
-        height=350, margin=dict(l=10, r=10, t=10, b=10),
+        height=320, margin=dict(l=0, r=0, t=0, b=0),
         xaxis_rangeslider_visible=False, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
-        showlegend=False, yaxis=dict(gridcolor='#333'), xaxis=dict(gridcolor='#333')
+        showlegend=False, yaxis=dict(gridcolor='#333', side="right"), xaxis=dict(gridcolor='#333')
     )
     st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
-
 else:
-    st.error("Market data unavailable.")
+    st.error("Connecting to Market Data...")
