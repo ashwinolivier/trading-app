@@ -4,7 +4,7 @@ import pandas as pd
 from datetime import datetime
 import pytz
 
-# --- 1. SQUASH THE PADDING ---
+# --- 1. SQUASH THE UI ---
 st.set_page_config(page_title="Gold Master", layout="wide", initial_sidebar_state="collapsed")
 
 st.markdown("""
@@ -12,11 +12,11 @@ st.markdown("""
     /* Force top padding to zero */
     .block-container { padding-top: 0rem !important; padding-bottom: 0rem !important; background-color: #0a0b10; }
     
-    /* Make the dropdown and input boxes super slim */
-    div[data-baseweb="select"] > div { min-height: 35px !important; }
-    .stTextInput input { height: 35px !important; }
+    /* Shrink the input boxes for mobile */
+    div[data-baseweb="select"] > div { min-height: 30px !important; font-size: 0.8rem !important; }
+    .stTextInput input { height: 30px !important; font-size: 0.8rem !important; }
     
-    /* Modern Glass Card with tighter margins */
+    /* Premium Card Styling */
     .trade-card {
         background: rgba(255, 255, 255, 0.03);
         border: 1px solid rgba(255, 255, 255, 0.1);
@@ -36,13 +36,15 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. COMPACT TOP CONTROLS ---
-# Using a 3-column split to keep everything on one horizontal line
-t1, t2 = st.columns([1, 1])
-with t1:
-    asset = st.text_input("Asset", value="GC=F", label_visibility="collapsed")
-with t2:
-    tf = st.selectbox("TF", ["1h", "4h", "1d"], index=1, label_visibility="collapsed")
+# --- 2. THE NEW CONTROL BAR ---
+# Using 2 columns that are guaranteed to stay side-by-side
+col1, col2 = st.columns(2)
+
+with col1:
+    # This is where you change GC=F to BTC-USD or EURUSD=X
+    asset = st.text_input("SYMBOL", value="GC=F").upper()
+with col2:
+    tf = st.selectbox("TIMEFRAME", ["1h", "4h", "1d"], index=1)
 
 # --- 3. DATA ENGINE ---
 @st.cache_data(ttl=60)
@@ -62,7 +64,7 @@ if not data.empty:
     curr, prev = data.iloc[-1], data.iloc[-2]
     cl, o, h, l = float(curr['Close']), float(curr['Open']), float(curr['High']), float(curr['Low'])
     
-    # Trend & Signal Logic
+    # Logic
     is_up = cl > curr['SMA21']
     body, l_s, u_s = abs(o - cl), (min(o, cl) - l), (h - max(o, cl))
     
@@ -73,7 +75,7 @@ if not data.empty:
     elif (cl < o) and (float(prev['Close']) > float(prev['Open'])) and (cl <= float(prev['Open'])): sig = "BEARISH ENGULFING"
 
     # --- 4. THE UI ---
-    st.markdown(f"<div style='text-align: center; margin-top: -10px; margin-bottom: 5px;'><span class='label-small'>{asset} LIVE • {time_now}</span></div>", unsafe_allow_html=True)
+    st.markdown(f"<div style='text-align: center; margin-bottom: 5px;'><span class='label-small'>{asset} LIVE • {time_now}</span></div>", unsafe_allow_html=True)
 
     # Price Card
     trend_tag = f"<span class='trend-up'>TREND: UP</span>" if is_up else f"<span class='trend-down'>TREND: DOWN</span>"
@@ -91,7 +93,6 @@ if not data.empty:
         ent = h + 0.2 if is_bull else l - 0.2
         sl = l - 0.2 if is_bull else h + 0.2
         tp = ent + (abs(ent-sl)*2) if is_bull else ent - (abs(ent-sl)*2)
-        
         accent = "#00ffa3" if is_bull else "#ff3366"
         st.markdown(f"""
             <div class="trade-card" style="border: 1px solid {accent}">
@@ -102,7 +103,7 @@ if not data.empty:
             </div>
         """, unsafe_allow_html=True)
     else:
-        st.info("🔎 Scanning market...")
+        st.info("🔎 Scanning...")
 
 else:
-    st.error("Check Connection")
+    st.error("Invalid Ticker or Connection Error.")
