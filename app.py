@@ -1,7 +1,18 @@
 # ============================================================
-# GOLD MASTER - Trading Terminal v2.1
-# Fixed Version
-# Requirements:
+# GOLD MASTER - Trading Terminal v2.2
+# Added:
+# - 20 EMA trend filter
+# - 4-factor confluence system
+#
+# Bearish conditions:
+# 1. Price below pivot
+# 2. Momentum weak
+# 3. Lower lows structure
+# 4. Price below EMA20
+#
+# Requires 3/4 bearish votes for SHORT bias
+#
+# Install:
 # pip install streamlit yfinance pandas pytz
 #
 # Run:
@@ -70,7 +81,6 @@ header, footer {
     letter-spacing: 2px !important;
     border-radius: 4px !important;
     padding: 0.4rem 1rem !important;
-    transition: all 0.2s !important;
 }
 
 .stButton > button:hover {
@@ -78,8 +88,7 @@ header, footer {
     border-color: #4a9eff !important;
 }
 
-label,
-.stSelectbox label {
+label {
     color: #4a6080 !important;
     font-size: 0.65rem !important;
     letter-spacing: 2px !important;
@@ -112,17 +121,14 @@ label,
 
 .dot-green {
     background: #00ff88;
-    box-shadow: 0 0 6px #00ff88;
 }
 
 .dot-yellow {
     background: #ffcc00;
-    box-shadow: 0 0 6px #ffcc00;
 }
 
 .dot-red {
     background: #ff3355;
-    box-shadow: 0 0 6px #ff3355;
 }
 
 .card {
@@ -131,18 +137,6 @@ label,
     border-radius: 8px;
     padding: 16px;
     margin-bottom: 12px;
-    position: relative;
-    overflow: hidden;
-}
-
-.card::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 1px;
-    background: linear-gradient(to right, transparent, #1e3a5f, transparent);
 }
 
 .card-label {
@@ -156,27 +150,18 @@ label,
 
 .price-big {
     font-family: 'Share Tech Mono', monospace;
-    font-size: 3.2rem;
-    font-weight: 400;
-    color: #ffffff;
+    font-size: 3rem;
     text-align: center;
-    line-height: 1;
-    letter-spacing: -1px;
-}
-
-.price-big span {
-    color: #2a4060;
-    font-size: 2rem;
+    color: white;
 }
 
 .bias-badge {
     display: inline-block;
-    padding: 3px 12px;
+    padding: 4px 12px;
     border-radius: 3px;
     font-size: 0.7rem;
     font-weight: 700;
-    letter-spacing: 3px;
-    margin-top: 6px;
+    letter-spacing: 2px;
 }
 
 .bias-bull {
@@ -200,31 +185,13 @@ label,
 .level-row {
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    padding: 5px 0;
-    border-bottom: 1px solid #0f1825;
-    font-size: 0.82rem;
-}
-
-.level-row:last-child {
-    border-bottom: none;
-}
-
-.level-label {
-    color: #4a6080;
-    font-size: 0.65rem;
-    letter-spacing: 1px;
-}
-
-.level-val {
-    font-family: 'Share Tech Mono', monospace;
+    padding: 6px 0;
+    border-bottom: 1px solid #101826;
 }
 
 .trade-block {
     display: flex;
-    justify-content: space-between;
-    gap: 8px;
-    margin-top: 4px;
+    gap: 10px;
     flex-wrap: wrap;
 }
 
@@ -232,118 +199,46 @@ label,
     flex: 1;
     min-width: 150px;
     background: #060810;
-    border-radius: 6px;
-    padding: 10px 12px;
-    text-align: center;
     border: 1px solid #1a2235;
+    border-radius: 6px;
+    padding: 12px;
+    text-align: center;
 }
 
 .trade-cell-label {
     font-size: 0.55rem;
-    letter-spacing: 3px;
+    letter-spacing: 2px;
     color: #3a5070;
-    margin-bottom: 4px;
 }
 
 .trade-cell-val {
     font-family: 'Share Tech Mono', monospace;
     font-size: 1rem;
-}
-
-.entry-color { color: #4a9eff; }
-.tp-color { color: #00ff88; }
-.sl-color { color: #ff3355; }
-.rr-color { color: #ffcc00; }
-
-.range-bar-wrap {
-    margin: 12px 0 4px 0;
-    position: relative;
-}
-
-.range-track {
-    height: 4px;
-    background: #1a2235;
-    border-radius: 2px;
-    position: relative;
-}
-
-.range-fill {
-    position: absolute;
-    top: 0;
-    left: 0;
-    height: 100%;
-    border-radius: 2px;
-}
-
-.range-needle {
-    position: absolute;
-    top: -4px;
-    width: 2px;
-    height: 12px;
-    background: #ffffff;
-    border-radius: 1px;
-    transform: translateX(-50%);
-}
-
-.range-labels {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.55rem;
-    color: #3a5070;
     margin-top: 4px;
-    letter-spacing: 1px;
 }
 
 .alert-box {
     border-radius: 6px;
-    padding: 10px 14px;
-    font-size: 0.78rem;
-    line-height: 1.5;
-    border-left: 3px solid;
-    margin-top: 4px;
+    padding: 12px;
+    margin-top: 8px;
 }
 
 .alert-bull {
-    background: rgba(0,255,136,0.05);
-    border-color: #00ff88;
+    background: rgba(0,255,136,0.08);
+    border-left: 3px solid #00ff88;
 }
 
 .alert-bear {
-    background: rgba(255,51,85,0.05);
-    border-color: #ff3355;
+    background: rgba(255,51,85,0.08);
+    border-left: 3px solid #ff3355;
 }
 
 .alert-neutral {
-    background: rgba(255,204,0,0.05);
-    border-color: #ffcc00;
-}
-
-.scanline {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: repeating-linear-gradient(
-        0deg,
-        transparent,
-        transparent 2px,
-        rgba(0,0,0,0.03) 2px,
-        rgba(0,0,0,0.03) 4px
-    );
-    pointer-events: none;
-    z-index: 9999;
-}
-
-.timestamp {
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 0.65rem;
-    color: #2a4060;
+    background: rgba(255,204,0,0.08);
+    border-left: 3px solid #ffcc00;
 }
 
 </style>
-
-<div class="scanline"></div>
 """, unsafe_allow_html=True)
 
 # ============================================================
@@ -356,7 +251,7 @@ st.markdown("""
 <span class="terminal-dot dot-green"></span>
 <span class="terminal-dot dot-yellow"></span>
 <span class="terminal-dot dot-red"></span>
-GOLD MASTER // TRADING TERMINAL v2.1
+GOLD MASTER // TRADING TERMINAL v2.2
 </div>
 </div>
 """, unsafe_allow_html=True)
@@ -413,12 +308,14 @@ YF_INTERVAL_MAP = {
 }
 
 # ============================================================
-# DATA FETCH
+# FETCH DATA
 # ============================================================
 
 @st.cache_data(ttl=60)
 def fetch_data(ticker, interval, period):
+
     try:
+
         df = yf.download(
             ticker,
             period=period,
@@ -454,7 +351,7 @@ time_now = datetime.now(jhb).strftime("%H:%M:%S")
 date_now = datetime.now(jhb).strftime("%d %b %Y")
 
 # ============================================================
-# CALCULATIONS
+# FUNCTIONS
 # ============================================================
 
 def calc_levels(df, n_candles):
@@ -478,7 +375,15 @@ def calc_levels(df, n_candles):
 
 def is_bearish_market(price, pivot, df):
 
+    # ========================================================
+    # FILTER 1 - BELOW PIVOT
+    # ========================================================
+
     below_pivot = price < pivot
+
+    # ========================================================
+    # FILTER 2 - MOMENTUM
+    # ========================================================
 
     if len(df) >= 5:
         momentum_up = (
@@ -486,7 +391,11 @@ def is_bearish_market(price, pivot, df):
             float(df["Close"].iloc[-5])
         )
     else:
-        momentum_up = price >= pivot
+        momentum_up = False
+
+    # ========================================================
+    # FILTER 3 - LOWER LOWS
+    # ========================================================
 
     if len(df) >= 10:
         lower_lows = (
@@ -496,59 +405,101 @@ def is_bearish_market(price, pivot, df):
     else:
         lower_lows = False
 
+    # ========================================================
+    # FILTER 4 - EMA20 TREND
+    # ========================================================
+
+    ema20 = (
+        df["Close"]
+        .ewm(span=20)
+        .mean()
+        .iloc[-1]
+    )
+
+    below_ema = price < ema20
+
+    # ========================================================
+    # CONFLUENCE
+    # ========================================================
+
     bearish_votes = sum([
         below_pivot,
         not momentum_up,
-        lower_lows
+        lower_lows,
+        below_ema
     ])
 
-    return bearish_votes >= 2
+    return bearish_votes >= 3
 
 
 def calc_trade(price, pivot, res1, res2, sup1, sup2, df):
 
     full_range = res2 - sup2
+
     buffer = full_range * 0.015
 
-    bearish = is_bearish_market(price, pivot, df)
+    bearish = is_bearish_market(
+        price,
+        pivot,
+        df
+    )
 
-    if not bearish:
-
-        bias = "LONG"
-
-        entry = round(max(pivot, res1 - buffer), 2)
-
-        sl = round(
-            entry - (entry - sup1) * 0.5,
-            2
-        )
-
-        tp = round(res2 - buffer, 2)
-
-    else:
+    if bearish:
 
         bias = "SHORT"
 
-        entry = round(min(pivot, sup1 + buffer), 2)
+        entry = round(
+            min(pivot, sup1 + buffer),
+            2
+        )
 
         sl = round(
             entry + (res1 - entry) * 0.5,
             2
         )
 
-        tp = round(sup2 + buffer, 2)
+        tp = round(
+            sup2 + buffer,
+            2
+        )
+
+    else:
+
+        bias = "LONG"
+
+        entry = round(
+            max(pivot, res1 - buffer),
+            2
+        )
+
+        sl = round(
+            entry - (entry - sup1) * 0.5,
+            2
+        )
+
+        tp = round(
+            res2 - buffer,
+            2
+        )
 
     risk = abs(entry - sl)
     reward = abs(tp - entry)
 
-    rr = round(reward / risk, 2) if risk > 0 else 0
+    rr = (
+        round(reward / risk, 2)
+        if risk > 0 else 0
+    )
 
     return bias, entry, tp, sl, rr
 
 
 def get_bias_class(price, pivot, res1, sup1, df):
 
-    bearish = is_bearish_market(price, pivot, df)
+    bearish = is_bearish_market(
+        price,
+        pivot,
+        df
+    )
 
     if bearish:
 
@@ -565,42 +516,22 @@ def get_bias_class(price, pivot, res1, sup1, df):
         elif price > pivot:
             return "bull", "BULLISH BIAS"
 
-        else:
-            return "neutral", "NEUTRAL"
-
-
-def price_position_pct(price, s2, r2):
-
-    rng = r2 - s2
-
-    if rng == 0:
-        return 50
-
-    return max(
-        0,
-        min(
-            100,
-            (price - s2) / rng * 100
-        )
-    )
+        return "neutral", "NEUTRAL"
 
 # ============================================================
-# MAIN DISPLAY
+# MAIN
 # ============================================================
 
-if not data.empty and len(data) >= 10:
+if not data.empty and len(data) >= 20:
 
     cl = float(data["Close"].iloc[-1])
 
-    prev_cl = (
-        float(data["Close"].iloc[-2])
-        if len(data) > 1 else cl
-    )
+    prev_cl = float(data["Close"].iloc[-2])
 
     chg = cl - prev_cl
 
     chg_pct = (
-        (chg / prev_cl * 100)
+        (chg / prev_cl) * 100
         if prev_cl != 0 else 0
     )
 
@@ -626,12 +557,6 @@ if not data.empty and len(data) >= 10:
         data
     )
 
-    pos_pct = price_position_pct(
-        cl,
-        sup2,
-        res2
-    )
-
     bias_type, bias_label = get_bias_class(
         cl,
         pivot,
@@ -640,7 +565,16 @@ if not data.empty and len(data) >= 10:
         data
     )
 
-    n_used = min(lookback, len(data))
+    ema20 = (
+        data["Close"]
+        .ewm(span=20)
+        .mean()
+        .iloc[-1]
+    )
+
+    # ========================================================
+    # COLORS
+    # ========================================================
 
     bias_badge_class = (
         "bias-bull"
@@ -658,160 +592,102 @@ if not data.empty and len(data) >= 10:
         else "alert-neutral"
     )
 
-    bar_gradient = (
-        "linear-gradient(to right, #00ff88, #ffcc00, #ff3355)"
-    )
-
     # ========================================================
-    # COLUMNS
+    # LAYOUT
     # ========================================================
 
-    col_a, col_b = st.columns([1, 1])
+    col1, col2 = st.columns([1, 1])
+
+    with col1:
+
+        st.markdown(f"""
+        <div class='card'>
+
+        <div class='card-label'>
+        LIVE PRICE // {asset}
+        </div>
+
+        <div class='price-big'>
+        ${cl:,.2f}
+        </div>
+
+        <div style='text-align:center;
+                    color:{chg_color};
+                    margin-top:8px;'>
+
+        {chg_sign}{chg:,.2f}
+        ({chg_sign}{chg_pct:.2f}%)
+
+        </div>
+
+        <div style='text-align:center;
+                    margin-top:10px;'>
+
+        <span class='bias-badge {bias_badge_class}'>
+        {bias_label}
+        </span>
+
+        </div>
+
+        <div style='text-align:center;
+                    margin-top:16px;
+                    color:#4a9eff;'>
+
+        EMA20: {ema20:,.2f}
+
+        </div>
+
+        <div style='text-align:center;
+                    margin-top:12px;
+                    font-size:0.75rem;
+                    color:#4a6080;'>
+
+        {date_now} | {time_now} JHB
+
+        </div>
+
+        </div>
+        """, unsafe_allow_html=True)
+
+    with col2:
+
+        st.markdown(f"""
+        <div class='card'>
+
+        <div class='card-label'>
+        KEY LEVELS
+        </div>
+
+        <div class='level-row'>
+        <span>R2</span>
+        <span>{res2:,.2f}</span>
+        </div>
+
+        <div class='level-row'>
+        <span>R1</span>
+        <span>{res1:,.2f}</span>
+        </div>
+
+        <div class='level-row'>
+        <span>PIVOT</span>
+        <span>{pivot:,.2f}</span>
+        </div>
+
+        <div class='level-row'>
+        <span>S1</span>
+        <span>{sup1:,.2f}</span>
+        </div>
+
+        <div class='level-row'>
+        <span>S2</span>
+        <span>{sup2:,.2f}</span>
+        </div>
+
+        </div>
+        """, unsafe_allow_html=True)
 
     # ========================================================
-    # PRICE CARD
-    # ========================================================
-
-    with col_a:
-
-        st.markdown(
-            f"""
-            <div class='card'>
-
-            <div class='card-label'>
-            LIVE PRICE // {asset} // {date_now}
-            </div>
-
-            <div style='text-align:center'>
-
-            <div class='price-big'>
-            <span>$</span>{cl:,.2f}
-            </div>
-
-            <div style='margin-top:6px;
-                        font-family:Share Tech Mono,monospace;
-                        font-size:0.75rem;
-                        color:{chg_color};'>
-
-            {chg_sign}{chg:,.2f} ({chg_sign}{chg_pct:.2f}%)
-
-            </div>
-
-            <div style='margin-top:8px'>
-
-            <span class='bias-badge {bias_badge_class}'>
-            {bias_label}
-            </span>
-
-            </div>
-            </div>
-
-            <div class='range-bar-wrap'>
-            <div class='range-track'>
-
-            <div class='range-fill'
-                 style='width:{pos_pct:.1f}%;
-                        background:{bar_gradient};'>
-            </div>
-
-            <div class='range-needle'
-                 style='left:{pos_pct:.1f}%'>
-            </div>
-
-            </div>
-
-            <div class='range-labels'>
-            <span>S2 {sup2:,.0f}</span>
-            <span>PIVOT {pivot:,.0f}</span>
-            <span>{res2:,.0f} R2</span>
-            </div>
-
-            </div>
-
-            <div style='text-align:center'
-                 class='timestamp'>
-
-            {time_now} JHB |
-            {n_used} CANDLES |
-            {tf.upper()}
-
-            </div>
-
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-    # ========================================================
-    # LEVELS CARD
-    # ========================================================
-
-    with col_b:
-
-        st.markdown(
-            f"""
-            <div class='card'>
-
-            <div class='card-label'>
-            KEY LEVELS // PIVOT ANALYSIS
-            </div>
-
-            <div class='level-row'>
-            <span class='level-label'>MAJOR RESISTANCE R2</span>
-            <span class='level-val'
-                  style='color:#ff3355'>
-            {res2:,.2f}
-            </span>
-            </div>
-
-            <div class='level-row'>
-            <span class='level-label'>RESISTANCE R1</span>
-            <span class='level-val'
-                  style='color:#ff8080'>
-            {res1:,.2f}
-            </span>
-            </div>
-
-            <div class='level-row'
-                 style='background:rgba(74,158,255,0.04);
-                        border-radius:3px;
-                        padding:6px 4px;'>
-
-            <span class='level-label'
-                  style='color:#4a9eff'>
-            PIVOT POINT
-            </span>
-
-            <span class='level-val'
-                  style='color:#4a9eff'>
-            {pivot:,.2f}
-            </span>
-
-            </div>
-
-            <div class='level-row'>
-            <span class='level-label'>SUPPORT S1</span>
-            <span class='level-val'
-                  style='color:#80ffb0'>
-            {sup1:,.2f}
-            </span>
-            </div>
-
-            <div class='level-row'>
-            <span class='level-label'>MAJOR SUPPORT S2</span>
-            <span class='level-val'
-                  style='color:#00ff88'>
-            {sup2:,.2f}
-            </span>
-            </div>
-
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-    # ========================================================
-    # TRADE SETUP
+    # TRADE CARD
     # ========================================================
 
     direction_color = (
@@ -820,177 +696,112 @@ if not data.empty and len(data) >= 10:
         else "#ff3355"
     )
 
-    st.markdown(
-        f"""
-        <div class='card'>
+    st.markdown(f"""
+    <div class='card'>
 
-        <div class='card-label'>
-        TRADE SETUP // {bias} SCENARIO
-        </div>
+    <div class='card-label'>
+    TRADE SETUP
+    </div>
 
-        <div class='trade-block'>
+    <div class='trade-block'>
 
-        <div class='trade-cell'>
-        <div class='trade-cell-label'>DIRECTION</div>
-        <div class='trade-cell-val'
-             style='color:{direction_color};
-                    font-size:1.4rem;
-                    font-weight:700;
-                    letter-spacing:3px'>
-        {bias}
-        </div>
-        </div>
+    <div class='trade-cell'>
+    <div class='trade-cell-label'>BIAS</div>
+    <div class='trade-cell-val'
+         style='color:{direction_color};'>
+    {bias}
+    </div>
+    </div>
 
-        <div class='trade-cell'>
-        <div class='trade-cell-label'>ENTRY ZONE</div>
-        <div class='trade-cell-val entry-color'>
-        {entry:,.2f}
-        </div>
-        </div>
+    <div class='trade-cell'>
+    <div class='trade-cell-label'>ENTRY</div>
+    <div class='trade-cell-val'>
+    {entry:,.2f}
+    </div>
+    </div>
 
-        <div class='trade-cell'>
-        <div class='trade-cell-label'>TAKE PROFIT</div>
-        <div class='trade-cell-val tp-color'>
-        {tp:,.2f}
-        </div>
-        </div>
+    <div class='trade-cell'>
+    <div class='trade-cell-label'>TP</div>
+    <div class='trade-cell-val'
+         style='color:#00ff88;'>
+    {tp:,.2f}
+    </div>
+    </div>
 
-        <div class='trade-cell'>
-        <div class='trade-cell-label'>STOP LOSS</div>
-        <div class='trade-cell-val sl-color'>
-        {sl:,.2f}
-        </div>
-        </div>
+    <div class='trade-cell'>
+    <div class='trade-cell-label'>SL</div>
+    <div class='trade-cell-val'
+         style='color:#ff3355;'>
+    {sl:,.2f}
+    </div>
+    </div>
 
-        <div class='trade-cell'>
-        <div class='trade-cell-label'>RISK : REWARD</div>
-        <div class='trade-cell-val rr-color'>
-        1 : {rr}
-        </div>
-        </div>
+    <div class='trade-cell'>
+    <div class='trade-cell-label'>RR</div>
+    <div class='trade-cell-val'
+         style='color:#ffcc00;'>
+    1 : {rr}
+    </div>
+    </div>
 
-        <div class='trade-cell'>
-        <div class='trade-cell-label'>
-        RISK ({risk_pct:.1f}%)
-        </div>
+    </div>
 
-        <div class='trade-cell-val'
-             style='color:#c8d0e0;
-                    font-size:0.85rem'>
-
-        ${abs(entry - sl):,.2f}/unit
-
-        </div>
-        </div>
-
-        </div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    </div>
+    """, unsafe_allow_html=True)
 
     # ========================================================
-    # ALERTS
+    # MARKET CONTEXT
     # ========================================================
 
     if bias_type == "bull":
 
-        if cl > res2:
-
-            alert_msg = (
-                f"🚀 <b>BREAKOUT CONFIRMED.</b> "
-                f"{asset} trading above R2 at "
-                f"<b>${res2:,.2f}</b>. "
-                f"Long bias active."
-            )
-
-        elif cl > res1:
-
-            alert_msg = (
-                f"📈 <b>APPROACHING R2.</b> "
-                f"Price above R1 - "
-                f"{asset} testing upper structure."
-            )
-
-        else:
-
-            alert_msg = (
-                f"📊 <b>BULLISH BIAS.</b> "
-                f"{asset} holding above pivot "
-                f"<b>${pivot:,.2f}</b>."
-            )
+        alert_msg = (
+            f"📈 Bullish structure above EMA20 "
+            f"and pivot support."
+        )
 
     elif bias_type == "bear":
 
-        if cl < sup2:
-
-            alert_msg = (
-                f"🚨 <b>MAJOR SUPPORT BROKEN.</b> "
-                f"{asset} below S2 "
-                f"<b>${sup2:,.2f}</b>."
-            )
-
-        elif cl < sup1:
-
-            alert_msg = (
-                f"🔴 <b>APPROACHING S2.</b> "
-                f"Price below S1."
-            )
-
-        else:
-
-            alert_msg = (
-                f"⚠️ <b>BEARISH BIAS.</b> "
-                f"{asset} showing bearish momentum."
-            )
+        alert_msg = (
+            f"🔴 Bearish structure confirmed "
+            f"below EMA20 and pivot."
+        )
 
     else:
 
         alert_msg = (
-            f"⏸ <b>RANGE BOUND.</b> "
-            f"{asset} consolidating between S1 and R1."
+            "⏸ Market consolidating. "
+            "Wait for confirmation."
         )
 
-    st.markdown(
-        f"""
-        <div class='card'>
+    st.markdown(f"""
+    <div class='card'>
 
-        <div class='card-label'>
-        MARKET CONTEXT
-        </div>
+    <div class='card-label'>
+    MARKET CONTEXT
+    </div>
 
-        <div class='alert-box {alert_class}'>
-        {alert_msg}
-        </div>
+    <div class='alert-box {alert_class}'>
+    {alert_msg}
+    </div>
 
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    </div>
+    """, unsafe_allow_html=True)
 
 # ============================================================
-# ERROR HANDLING
+# ERROR
 # ============================================================
 
 else:
 
-    if data.empty:
-        reason = (
-            "No data returned. "
-            "Check the symbol or connection."
-        )
-    else:
-        reason = (
-            f"Only {len(data)} candles returned. "
-            "Need at least 10."
-        )
-
-    st.error(f"OFFLINE // {reason}")
+    st.error(
+        "OFFLINE // Not enough data returned."
+    )
 
     st.info(
-        "Try refreshing or changing the symbol/timeframe."
+        "Try another symbol or timeframe."
     )
 
 # ============================================================
-# END OF FILE
+# END
 # ============================================================
