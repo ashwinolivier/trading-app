@@ -1,3 +1,17 @@
+# ============================================================
+
+# GOLD MASTER - Trading Terminal v2.1
+
+# Fixed: SHORT/LONG bias now uses 2-of-3 confluence filter
+
+# (price vs pivot, momentum, lower lows structure)
+
+# Requirements: streamlit, yfinance, pandas, pytz
+
+# Run: streamlit run app.py
+
+# ============================================================
+
 import streamlit as st
 import yfinance as yf
 import pandas as pd
@@ -124,19 +138,11 @@ S2 = P - (H - L)
 return P, R1, R2, S1, S2
 
 def is_bearish_market(price, pivot, df):
-“””
-Returns True if market structure and momentum favour shorts.
-Uses three confluence filters:
-1. Price vs pivot
-2. Short-term momentum (last 5 closes)
-3. Structure: lower lows over last 10 candles
-Bearish confirmed when at least 2 of 3 filters are bearish.
-“””
 # Filter 1: price below pivot
 below_pivot = price < pivot
 
 ```
-# Filter 2: momentum — last close vs 5 candles ago
+# Filter 2: momentum - last close vs 5 candles ago
 if len(df) >= 5:
     momentum_up = float(df["Close"].iloc[-1]) > float(df["Close"].iloc[-5])
 else:
@@ -155,10 +161,9 @@ return bearish_votes >= 2
 def calc_trade(price, pivot, res1, res2, sup1, sup2, df):
 full_range = res2 - sup2
 buffer = full_range * 0.015
-
-```
 bearish = is_bearish_market(price, pivot, df)
 
+```
 if not bearish:
     bias = "LONG"
     entry = round(max(pivot, res1 - buffer), 2)
@@ -269,19 +274,18 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# --- Market Context Alert ---
 if bias_type == "bull":
     if cl > res2:
         alert_msg = "🚀 <b>BREAKOUT CONFIRMED.</b> " + asset + " trading above R2 at <b>$" + f"{res2:,.2f}" + "</b>. Long bias active. Trail stop above pivot."
     elif cl > res1:
-        alert_msg = "📈 <b>APPROACHING R2.</b> Price above R1 — " + asset + " testing upper structure. Long entry near <b>$" + f"{entry:,.2f}" + "</b>, target R2."
+        alert_msg = "📈 <b>APPROACHING R2.</b> Price above R1 - " + asset + " testing upper structure. Long entry near <b>$" + f"{entry:,.2f}" + "</b>, target R2."
     else:
         alert_msg = "📊 <b>BULLISH BIAS.</b> " + asset + " holding above pivot <b>$" + f"{pivot:,.2f}" + "</b>. Look for long entries on pullbacks."
 elif bias_type == "bear":
     if cl < sup2:
         alert_msg = "🚨 <b>MAJOR SUPPORT BROKEN.</b> " + asset + " below S2 <b>$" + f"{sup2:,.2f}" + "</b>. Short bias active. Ride the breakdown."
     elif cl < sup1:
-        alert_msg = "🔴 <b>APPROACHING S2.</b> Price below S1 — bears in control. Short entry near <b>$" + f"{entry:,.2f}" + "</b>, target S2."
+        alert_msg = "🔴 <b>APPROACHING S2.</b> Price below S1 - bears in control. Short entry near <b>$" + f"{entry:,.2f}" + "</b>, target S2."
     else:
         alert_msg = "⚠️ <b>BEARISH BIAS.</b> " + asset + " showing bearish momentum. Look for short entries on bounces toward <b>$" + f"{entry:,.2f}" + "</b>."
 else:
@@ -295,7 +299,7 @@ st.markdown(
 ```
 
 else:
-reason = “No data returned. Check the symbol or your connection.” if data.empty else “Only “ + str(len(data)) + “ candles — need at least 10.”
+reason = “No data returned. Check the symbol or your connection.” if data.empty else “Only “ + str(len(data)) + “ candles - need at least 10.”
 st.error(“OFFLINE // “ + reason)
 st.info(“Try refreshing or changing the symbol/timeframe.”)
 
