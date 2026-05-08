@@ -1,0 +1,227 @@
+//@version=5
+indicator("GOLD MASTER v2.2", overlay=true)
+
+// =====================================================
+// INPUTS
+// =====================================================
+
+lookback = input.int(30, "Pivot Lookback")
+emaLength = input.int(20, "EMA Length")
+bufferPct = input.float(1.5, "Buffer %") / 100
+
+// =====================================================
+// EMA
+// =====================================================
+
+ema20 = ta.ema(close, emaLength)
+
+// =====================================================
+// PIVOT LEVELS
+// =====================================================
+
+H = ta.highest(high, lookback)
+L = ta.lowest(low, lookback)
+C = close
+
+pivot = (H + L + C) / 3
+
+R1 = 2 * pivot - L
+R2 = pivot + (H - L)
+
+S1 = 2 * pivot - H
+S2 = pivot - (H - L)
+
+// =====================================================
+// FILTERS
+// =====================================================
+
+// Filter 1
+belowPivot = close < pivot
+
+// Filter 2
+momentumUp = close > close[5]
+
+// Filter 3
+lowerLows = low < low[10]
+
+// Filter 4
+belowEMA = close < ema20
+
+// =====================================================
+// CONFLUENCE
+// =====================================================
+
+bearishVotes = 0
+
+bearishVotes += belowPivot ? 1 : 0
+bearishVotes += not momentumUp ? 1 : 0
+bearishVotes += lowerLows ? 1 : 0
+bearishVotes += belowEMA ? 1 : 0
+
+bearish = bearishVotes >= 3
+bullish = not bearish
+
+// =====================================================
+// TRADE CALCULATIONS
+// =====================================================
+
+fullRange = R2 - S2
+buffer = fullRange * bufferPct
+
+longEntry = math.max(pivot, R1 - buffer)
+longSL = longEntry - ((longEntry - S1) * 0.5)
+longTP = R2 - buffer
+
+shortEntry = math.min(pivot, S1 + buffer)
+shortSL = shortEntry + ((R1 - shortEntry) * 0.5)
+shortTP = S2 + buffer
+
+entry = bearish ? shortEntry : longEntry
+sl = bearish ? shortSL : longSL
+tp = bearish ? shortTP : longTP
+
+// =====================================================
+// COLORS
+// =====================================================
+
+bullColor = color.lime
+bearColor = color.red
+neutralColor = color.orange
+
+trendColor = bearish ? bearColor : bullColor
+
+// =====================================================
+// BACKGROUND
+// =====================================================
+
+bgcolor(
+     bearish ?
+     color.new(color.red, 92) :
+     color.new(color.green, 92)
+)
+
+// =====================================================
+// PLOTS
+// =====================================================
+
+plot(ema20, color=color.aqua, linewidth=2, title="EMA20")
+
+plot(pivot, color=color.blue, linewidth=2, title="Pivot")
+
+plot(R1, color=color.red, title="R1")
+plot(R2, color=color.red, linewidth=2, title="R2")
+
+plot(S1, color=color.green, title="S1")
+plot(S2, color=color.green, linewidth=2, title="S2")
+
+// =====================================================
+// TRADE LEVELS
+// =====================================================
+
+plot(entry,
+     color=color.yellow,
+     linewidth=2,
+     style=plot.style_linebr,
+     title="Entry")
+
+plot(tp,
+     color=color.lime,
+     linewidth=2,
+     style=plot.style_linebr,
+     title="Take Profit")
+
+plot(sl,
+     color=color.red,
+     linewidth=2,
+     style=plot.style_linebr,
+     title="Stop Loss")
+
+// =====================================================
+// SIGNALS
+// =====================================================
+
+longSignal = bullish and bullish[1] == false
+shortSignal = bearish and bearish[1] == false
+
+plotshape(
+     longSignal,
+     title="LONG",
+     location=location.belowbar,
+     color=color.lime,
+     style=shape.labelup,
+     text="LONG"
+)
+
+plotshape(
+     shortSignal,
+     title="SHORT",
+     location=location.abovebar,
+     color=color.red,
+     style=shape.labeldown,
+     text="SHORT"
+)
+
+// =====================================================
+// STATUS TABLE
+// =====================================================
+
+var table statusTable = table.new(
+     position.top_right,
+     2,
+     8,
+     border_width=1
+)
+
+if barstate.islast
+
+    table.cell(statusTable, 0, 0, "BIAS")
+    table.cell(
+         statusTable,
+         1,
+         0,
+         bearish ? "SHORT" : "LONG",
+         text_color=trendColor
+    )
+
+    table.cell(statusTable, 0, 1, "EMA20")
+    table.cell(statusTable, 1, 1, str.tostring(ema20, format.mintick))
+
+    table.cell(statusTable, 0, 2, "PIVOT")
+    table.cell(statusTable, 1, 2, str.tostring(pivot, format.mintick))
+
+    table.cell(statusTable, 0, 3, "ENTRY")
+    table.cell(statusTable, 1, 3, str.tostring(entry, format.mintick))
+
+    table.cell(statusTable, 0, 4, "TP")
+    table.cell(statusTable, 1, 4, str.tostring(tp, format.mintick))
+
+    table.cell(statusTable, 0, 5, "SL")
+    table.cell(statusTable, 1, 5, str.tostring(sl, format.mintick))
+
+    table.cell(statusTable, 0, 6, "BEAR VOTES")
+    table.cell(statusTable, 1, 6, str.tostring(bearishVotes))
+
+    table.cell(statusTable, 0, 7, "TREND")
+    table.cell(
+         statusTable,
+         1,
+         7,
+         bearish ? "BEARISH" : "BULLISH",
+         text_color=trendColor
+    )
+
+// =====================================================
+// ALERTS
+// =====================================================
+
+alertcondition(
+     longSignal,
+     title="LONG SIGNAL",
+     message="GOLD MASTER LONG setup detected"
+)
+
+alertcondition(
+     shortSignal,
+     title="SHORT SIGNAL",
+     message="GOLD MASTER SHORT setup detected"
+)
